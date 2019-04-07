@@ -1,0 +1,76 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: mq
+  annotations:
+    "helm.sh/hook-weight": "0"
+  labels:
+    deployment: mq
+spec:
+  selector:
+    matchLabels:
+      pod: mq
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        pod: mq
+    spec:
+      containers:
+      - name: mq
+        image: rabbitmq:3
+        ports:
+          - containerPort: 5672
+            name: tesla
+          - containerPort: 15672
+            name: tesla2
+
+---
+
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: postgres
+  annotations:
+    "helm.sh/hook-weight": "0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        tier: backend
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:9.6.6
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: user
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+
+            - name: POSTGRES_DB
+              value: kubernetes_django
+
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-volume-mount
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+
+      volumes:
+        - name: postgres-volume-mount
+          persistentVolumeClaim:
+            claimName: postgres-pvc
